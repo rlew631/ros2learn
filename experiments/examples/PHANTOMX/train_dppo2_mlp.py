@@ -7,13 +7,14 @@ import gym_gazebo2
 import tensorflow as tf
 import multiprocessing
 
+import threading
+
 from importlib import import_module
 from baselines import bench, logger
 from baselines.ppo2 import ppo2
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
 ncpu = multiprocessing.cpu_count()
-
 if sys.platform == 'darwin':
     ncpu //= 2
 
@@ -48,17 +49,22 @@ def get_learn_function_defaults(alg, env_type):
         kwargs = {}
     return kwargs
 
-def make_env():
-    env = gym.make(alg_kwargs['env_name'])
-    env.set_episode_size(alg_kwargs['nsteps'])
-    env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir()), allow_early_resets=True)
+leg_name = ""
 
+def make_env_limb():
+    env = gym.make('PhantomXLeg-v0')
+    env.set_info(main_env.info)
+    # env.set_episode_size(alg_kwargs['nsteps'])
+    env.leg_name = leg_name
+    os.makedirs(logger.get_dir() + "/" + leg_name, exist_ok=True)
+    env = bench.Monitor(env, logger.get_dir() + "/" + leg_name + "/log" and os.path.join(logger.get_dir() + "/" + leg_name + "/log"),
+                        allow_early_resets=True)
     return env
+
 
 # Get dictionary from baselines/ppo2/defaults
 env_type = 'phantomx_mlp'
-alg_kwargs = get_learn_function_defaults('dppo2', env_type)
-#alg_kwargs['env_name'] = 'PhantomX-v0'
+alg_kwargs = get_learn_function_defaults('ppo2', env_type)
 # Create needed folders
 timedate = datetime.now().strftime('%Y-%m-%d_%Hh%Mmin')
 logdir = '/tmp/ros2learn/' + alg_kwargs['env_name'] + '/dppo2_mlp/' + timedate
@@ -66,7 +72,6 @@ logdir = '/tmp/ros2learn/' + alg_kwargs['env_name'] + '/dppo2_mlp/' + timedate
 # Generate tensorboard file
 format_strs = os.getenv('MARA_LOG_FORMAT', 'stdout,log,csv,tensorboard').split(',')
 logger.configure(os.path.abspath(logdir), format_strs)
-
 with open(logger.get_dir() + "/parameters.txt", 'w') as out:
     out.write(
         'num_layers = ' + str(alg_kwargs['num_layers']) + '\n'
@@ -90,11 +95,23 @@ with open(logger.get_dir() + "/parameters.txt", 'w') as out:
         + 'env_name = ' + alg_kwargs['env_name'] + '\n'
         + 'transfer_path = ' + str(alg_kwargs['transfer_path']) )
 
-env = DummyVecEnv([make_env])
 
-learn = get_learn_function('dppo2')
+main_env = gym.make('PhantomX-v0')
+# main_env.set_episode_size(alg_kwargs['nsteps'])
+
+# main_env = bench.Monitor(main_env, logger.get_dir() and os.path.join(logger.get_dir()), allow_early_resets=True)
+# left_env = DummyVecEnv([make_env_left])
+# right_env = DummyVecEnv([make_env_right])
+
+leg_envs = {}
+learners = {}
+legs = ['lf', 'lm', 'lr', 'rf',  'rm', 'rr']
+for leg in legs:
+        leg_name = leg
+        leg_envs[leg] = DummyVecEnv([make_env_limb])
+        learners[leg] = get_learn_function('ppo2')
+
 transfer_path = alg_kwargs['transfer_path']
-
 # Remove unused parameters for training
 alg_kwargs.pop('env_name')
 alg_kwargs.pop('trained_path')
@@ -102,6 +119,22 @@ alg_kwargs.pop('transfer_path')
 
 if transfer_path is not None:
     # Do transfer learning
-    learn(env=env,load_path=transfer_path, **alg_kwargs)
+    # learn(env=left_env, load_path=transfer_path, **alg_kwargs)
+    pass
 else:
-    learn(env=env, **alg_kwargs)
+    threads = []
+    print("starting threads")
+    for leg in legs:
+        threads.append(threading.Thread(target=learners[leg], kwargs=dict(env=leg_envs[leg], **alg_kwargs)))
+    for thread in threads:
+        thread.start()
+
+    # l_thread = threading.Thread(target=learn, kwargs=dict(env=left_env, **alg_kwargs))
+    # r_thread = threading.Thread(target=learn, kwargs=dict(env=right_env, **alg_kwargs))
+    # l_thread.start()
+    # r_thread.start()
+    print("threads started")
+    while True:
+        main_env.info.execute_action()
+        main_env.info.execute_reset()
+        time.sleep(1/1000)

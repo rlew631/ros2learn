@@ -7,13 +7,14 @@ import gym_gazebo2
 import tensorflow as tf
 import multiprocessing
 
+import threading
+
 from importlib import import_module
 from baselines import bench, logger
 from baselines.ppo2 import ppo2
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
 ncpu = multiprocessing.cpu_count()
-
 if sys.platform == 'darwin':
     ncpu //= 2
 
@@ -49,16 +50,17 @@ def get_learn_function_defaults(alg, env_type):
     return kwargs
 
 def make_env():
-    env = gym.make(alg_kwargs['env_name'])
+    env = gym.make('PhantomX-v0')
     env.set_episode_size(alg_kwargs['nsteps'])
-    env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir()), allow_early_resets=True)
-
+    os.makedirs(logger.get_dir(), exist_ok=True)
+    env = bench.Monitor(env, logger.get_dir() + "/log" and os.path.join(logger.get_dir() + "/log"),
+                        allow_early_resets=True)
     return env
+
 
 # Get dictionary from baselines/ppo2/defaults
 env_type = 'phantomx_mlp'
 alg_kwargs = get_learn_function_defaults('ppo2', env_type)
-#alg_kwargs['env_name'] = 'PhantomX-v0'
 # Create needed folders
 timedate = datetime.now().strftime('%Y-%m-%d_%Hh%Mmin')
 logdir = '/tmp/ros2learn/' + alg_kwargs['env_name'] + '/ppo2_mlp/' + timedate
@@ -90,11 +92,11 @@ with open(logger.get_dir() + "/parameters.txt", 'w') as out:
         + 'env_name = ' + alg_kwargs['env_name'] + '\n'
         + 'transfer_path = ' + str(alg_kwargs['transfer_path']) )
 
-env = DummyVecEnv([make_env])
 
-learn = get_learn_function('ppo2')
+main_env = DummyVecEnv([make_env])
+learner = get_learn_function('ppo2')
+
 transfer_path = alg_kwargs['transfer_path']
-
 # Remove unused parameters for training
 alg_kwargs.pop('env_name')
 alg_kwargs.pop('trained_path')
@@ -102,6 +104,7 @@ alg_kwargs.pop('transfer_path')
 
 if transfer_path is not None:
     # Do transfer learning
-    learn(env=env,load_path=transfer_path, **alg_kwargs)
+    # learn(env=left_env, load_path=transfer_path, **alg_kwargs)
+    pass
 else:
-    learn(env=env, **alg_kwargs)
+    learner(env=main_env, **alg_kwargs)
