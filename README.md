@@ -34,6 +34,7 @@ Refer to [docker/README.md](/docker/README.md) for ROS2Learn Docker container in
 
 ### Tune hyperparameters
 Check the optimal network hyperparameters for the environment you want to train. [Hyperparams.md](/Hyperparams.md).
+__currently no phantomx hyperparameters available__
 
 ### Train an agent
 You will find all available examples at */experiments/examples/*. Although the algorithms are complex, the way to execute them is really simple. For instance, if you want to train the phantomx robot using ppo2_mlp, you should execute the following command:
