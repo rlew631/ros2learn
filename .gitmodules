@@ -1,6 +1,8 @@
 [submodule "algorithms/baselines"]
     path = algorithms/baselines
     url = https://github.com/kkonen/baselines-1.git
+    branch = master
 [submodule "environments/gym-gazebo2"]
     path = environments/gym-gazebo2
     url = https://github.com/kkonen/gym-gazebo2.git
+    branch = phantomx
