@@ -28,7 +28,9 @@ Eprint = {arXiv:1903.06282},
 
 Please refer to [Install.md](/Install.md) to install from sources.
 
-Refer to [docker/README.md](/docker/README.md) for ROS2Learn Docker container installation and usage instructions.
+
+___This is not tested and most probably not working with my fork! Working docker example is coming soon!__
+~~Refer to [docker/README.md](/docker/README.md) for ROS2Learn Docker container installation and usage instructions.~~
 
 ## Usage
 
