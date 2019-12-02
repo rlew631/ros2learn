@@ -124,7 +124,8 @@ if transfer_path is not None:
 else:
     threads = []
     print("starting threads")
-    for leg in legs:
+    for idx, leg in enumerate(legs):
+        alg_kwargs['seed'] = idx
         threads.append(threading.Thread(target=learners[leg], kwargs=dict(env=leg_envs[leg], **alg_kwargs)))
     for thread in threads:
         thread.start()
