@@ -6,7 +6,6 @@ import gym_gazebo2
 import numpy as np
 import multiprocessing
 import tensorflow as tf
-import write_csv as csv_file
 
 from importlib import import_module
 from baselines import bench, logger
@@ -62,37 +61,11 @@ def make_env():
     return env
 
 # Get dictionary from baselines/ppo2/defaults
-defaults = get_learn_function_defaults('ppo2', 'mara_mlp')
-
-# Create needed folders
-try:
-    logdir = defaults['trained_path'].split('checkpoints')[0] + 'results' + defaults['trained_path'].split('checkpoints')[1]
-except:
-    logdir = '/tmp/ros2learn/' + defaults['env_name'] + '/ppo2_mlp_results/'
-finally:
-    logger.configure( os.path.abspath(logdir) )
-    csvdir = logdir + "/csv/"
-
-csv_files = [csvdir + "det_obs.csv", csvdir + "det_acs.csv", csvdir + "det_rew.csv" ]
-if not os.path.exists(csvdir):
-    os.makedirs(csvdir)
-else:
-    for f in csv_files:
-        if os.path.isfile(f):
-            os.remove(f)
+defaults = get_learn_function_defaults('ppo2', 'phantomx_mlp')
 
 env = DummyVecEnv([make_env])
 
 set_global_seeds(defaults['seed'])
-
-if isinstance(defaults['lr'], float):
-    defaults['lr'] = constfn(defaults['lr'])
-else:
-    assert callable(defaults['lr'])
-if isinstance(defaults['cliprange'], float):
-    defaults['cliprange'] = constfn(defaults['cliprange'])
-else:
-    assert callable(defaults['cliprange'])
 
 alg_kwargs ={ 'num_layers': defaults['num_layers'], 'num_hidden': defaults['num_hidden'] }
 policy = build_policy(env, defaults['network'], **alg_kwargs)
@@ -110,23 +83,10 @@ make_model = lambda : ppo2.Model(policy=policy, ob_space=ob_space, ac_space=ac_s
 
 model = make_model()
 
-if defaults['trained_path'] is not None:
-    model.load(defaults['trained_path'])
+model.load('/tmp/training_data/dockerv1.3/PhantomX-v0/ppo2_mlp/2019-12-03_17h02min/main/checkpoints/07550')
 
 obs = env.reset()
 loop = True
 while loop:
-    actions = model.step_deterministic(obs)[0]
-    obs, reward, done, _  = env.step_runtime(actions)
-
-    print("Reward: ", reward)
-    print("ee_translation[x, y, z]: ", obs[0][6:9])
-    print("ee_orientation[w, x, y, z]: ", obs[0][9:13])
-
-    csv_file.write_obs(obs[0], csv_files[0], defaults['env_name'])
-    csv_file.write_acs(actions[0], csv_files[1])
-    csv_file.write_rew(reward, csv_files[2])
-
-    if np.allclose(obs[0][6:9], np.asarray([0., 0., 0.]), atol=0.005 ): # lock if less than 5mm error in each axis
-        env.step_runtime(obs[0][:6])
-        loop = False
+    actions = model.step(obs)[0]
+    obs, reward, done, _  = env.step(actions)
