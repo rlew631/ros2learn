@@ -106,6 +106,7 @@ main_env = gym.make('PhantomX-v0')
 leg_envs = {}
 learners = {}
 legs = ['lf', 'lm', 'lr', 'rf',  'rm', 'rr']
+
 for leg in legs:
         leg_name = leg
         leg_envs[leg] = DummyVecEnv([make_env_limb])
