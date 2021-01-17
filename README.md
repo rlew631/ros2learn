@@ -1,3 +1,8 @@
+__THIS fork is a modified version of kkonen's fork__
+so far changes have been made to try and fix the docker_gpu version. These fixes involved:
+- explixitly defining some environmental variables
+- building openCV from source
+- adding rosdep (can probably be taken out now that openCV appears to be installing correctly)
 
 __This is a heavily modified fork from AcutronicRobotics.__
 
